@@ -19,10 +19,20 @@ def main():
     modast = driver.parse_string(first_file)
     states = lookup.lookup(modast, ast.AstNodeType.UNIT_BLOCK)
 
-    for state in states:
-        print(nmodl.to_nmodl(state))
+    if len(states) < 1:
+        print("mod file has no unit block")
 
-    # print(dsl.to_json(modast))
+    for state in states:
+        units = nmodl.to_nmodl(state).split("\n")
+        if len(units) <= 2:
+            print("no units")
+            break
+        units = [u.strip() for u in units[1:len(units)-1]]
+        units.sort()
+        print('\n'.join(units))
+        
+
+
 
 
 if __name__ == "__main__":

@@ -1,0 +1,12 @@
+UNITS {
+    (mV) = (millivolt)
+    (mA) = (milliamp)
+    (nA) = (nanoamp)
+    (pA) = (picoamp)
+    (S) = (siemens)
+    (nS) = (nanosiemens)
+    (pS) = (picosiemens)
+    (um) = (micron)
+    (molar) = (1/liter)
+    (mM) = (millimolar)
+}
