@@ -19,14 +19,15 @@ def main():
     files = [
         join(args.input, f) for f in listdir(args.input) if isfile(join(args.input, f))
     ]
-    print(files)
     docs = [(f, Path(f).read_text()) for f in files]
 
     candidates = candidate_duplicates(
         docs, char_ngram=5, seeds=100, bands=20, hashbytes=4
     )
+    
+    n = len(files)
 
-    sims_all = np.zeros((4, 4), dtype=np.float64)
+    sims_all = np.zeros((n, n), dtype=np.float64)
     for i, _ in enumerate(docs):
         for j in range(i + 1, len(docs)):
             shingles_a = shingles(docs[i][1])
@@ -49,7 +50,7 @@ def main():
     pairs_ot = (sims_all >= float(args.threshold)).sum()
     pairs_ot = 1 if found == 0 else pairs_ot
     print(
-        f"Out of {pairs_ot} pairs with similarity >= {float(args.threshold) * 100}% {found} were found, that's {(found/pairs_ot) * 100}%"
+        f"{pairs_ot} pairs with similarity >= {float(args.threshold) * 100}% were found."
     )
     pp.pprint(pairs_names)
 
