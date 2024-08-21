@@ -39,7 +39,7 @@ def candidate_duplicates(document_feed, char_ngram=5, seeds=100, bands=5, hashby
 
     return candidate_pairs
 
-def apply_lsh(data: List[str, str], threshold: float) -> Tuple[str,Set[str]]:
+def apply_lsh(data: List[Tuple[str,str]], threshold: float) -> Tuple[str,Set[str]]:
     candidates = candidate_duplicates(
         data, char_ngram=5, seeds=100, bands=20, hashbytes=4
     )

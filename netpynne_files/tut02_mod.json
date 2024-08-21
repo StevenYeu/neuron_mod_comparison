@@ -1,0 +1,193 @@
+{
+    "net": {
+        "params": {
+            "_labelid": 0,
+            "cellParams": {
+                "E": {
+                    "secs": {
+                        "soma": {
+                            "geom": {
+                                "L": 14,
+                                "Ra": 12.0,
+                                "diam": 15
+                            },
+                            "mechs": {
+                                "hh": {
+                                    "el": -70,
+                                    "gkbar": 0.036,
+                                    "gl": 0.003,
+                                    "gnabar": 0.13
+                                }
+                            }
+                        }
+                    }
+                },
+                "I": {
+                    "secs": {
+                        "soma": {
+                            "geom": {
+                                "L": 9.0,
+                                "Ra": 110.0,
+                                "diam": 10.0
+                            },
+                            "mechs": {
+                                "hh": {
+                                    "el": -70,
+                                    "gkbar": 0.036,
+                                    "gl": 0.003,
+                                    "gnabar": 0.11
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "cellsVisualizationSpacingMultiplier": [
+                1,
+                1,
+                1
+            ],
+            "connParams": {
+                "E->all": {
+                    "delay": "dist_3D/propVelocity",
+                    "postConds": {
+                        "y": [
+                            100,
+                            1000
+                        ]
+                    },
+                    "preConds": {
+                        "cellType": "E"
+                    },
+                    "probability": 0.1,
+                    "synMech": "exc",
+                    "weight": "0.005*post_ynorm"
+                },
+                "I->E": {
+                    "delay": "dist_3D/propVelocity",
+                    "postConds": {
+                        "pop": [
+                            "E2",
+                            "E4",
+                            "E5"
+                        ]
+                    },
+                    "preConds": {
+                        "cellType": "I"
+                    },
+                    "probability": "0.4*exp(-dist_3D/probLengthConst)",
+                    "synMech": "inh",
+                    "weight": 0.021
+                }
+            },
+            "correctBorder": false,
+            "defaultDelay": 1,
+            "defaultThreshold": 10,
+            "defaultWeight": 1,
+            "defineCellShapes": false,
+            "mapping": {},
+            "popParams": {
+                "E2": {
+                    "cellType": "E",
+                    "numCells": 50,
+                    "yRange": [
+                        100,
+                        300
+                    ]
+                },
+                "E4": {
+                    "cellType": "E",
+                    "numCells": 50,
+                    "yRange": [
+                        300,
+                        600
+                    ]
+                },
+                "E5": {
+                    "cellType": "E",
+                    "numCells": 50,
+                    "ynormRange": [
+                        2.6,
+                        1.0
+                    ]
+                },
+                "I2": {
+                    "cellType": "I",
+                    "numCells": 50,
+                    "yRange": [
+                        100,
+                        300
+                    ]
+                },
+                "I4": {
+                    "cellType": "I",
+                    "numCells": 50,
+                    "yRange": [
+                        300,
+                        600
+                    ]
+                },
+                "I5": {
+                    "cellType": "I",
+                    "numCells": 50,
+                    "ynormRange": [
+                        0.6,
+                        1.0
+                    ]
+                }
+            },
+            "popTagsCopiedToCells": [
+                "cellModel",
+                "cellType"
+            ],
+            "probLengthConst": 150.0,
+            "propVelocity": 100.0,
+            "rotateCellsRandomly": false,
+            "rxdParams": {},
+            "scale": 1,
+            "scaleConnWeight": 1,
+            "scaleConnWeightModels": false,
+            "scaleConnWeightNetStims": 1,
+            "shape": "cuboid",
+            "sizeX": 100,
+            "sizeY": 1000,
+            "sizeZ": 100,
+            "stimSourceParams": {
+                "bkg": {
+                    "noise": 0.3,
+                    "rate": 10,
+                    "type": "NetStim"
+                }
+            },
+            "stimTargetParams": {
+                "bkg->all": {
+                    "conds": {
+                        "cellType": [
+                            "E",
+                            "I"
+                        ]
+                    },
+                    "delay": "max(1, normal(5,2))",
+                    "source": "bkg",
+                    "synMech": "exc",
+                    "weight": 0.11
+                }
+            },
+            "subConnParams": {},
+            "synMechParams": {
+                "exc": {
+                    "e": 0,
+                    "mod": "Exp2Syn",
+                    "tau1": 0.8,
+                    "tau2": 5.4
+                },
+                "inh": {
+                    "e": -75,
+                    "mod": "Exp2Syn",
+                    "tau1": 0.6,
+                    "tau2": 8.5
+                }
+            }
+        }
+    }
+}
