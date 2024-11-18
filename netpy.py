@@ -1,6 +1,6 @@
 import json
 import argparse
-from pprint import pp, pprint
+from pprint import pprint
 from typing import Any, Dict
 from os import listdir
 from os.path import isfile, join
