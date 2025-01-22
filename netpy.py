@@ -21,7 +21,14 @@ CELL_PARAMS = [
 def parse_netpyne_file(data_dict: Dict[str, Any]) -> Dict[str, str]:
     result = {}
     for k in CELL_PARAMS:
-        value = json.dumps(data_dict[k], sort_keys=True)
+        if k not in data_dict:
+            print(f"{k} key was not found")
+            exit(1)
+        if not data_dict[k]:
+            value = "{}"
+        else:
+            value = json.dumps(data_dict[k], sort_keys=True)
+
         result[k] = value
 
     return result
@@ -32,6 +39,9 @@ def read_netpyne_file(file_path: str):
     netpyne_json = json.load(netpyne_data)
     if "net" not in netpyne_json:
         print(f"{file_path} is missing key 'net'")
+        exit(1)
+    if "params" not in netpyne_json["net"]:
+        print(f"{file_path} is missing key 'params'")
         exit(1)
     return netpyne_json["net"]["params"]
 
@@ -55,6 +65,7 @@ def run():
         data = [
             (filename, data_dict[param]) for filename, data_dict in file_params.items()
         ]
+
         res, pairs = apply_lsh(data, args.threshold)
         result[param] = (res, pairs)
 

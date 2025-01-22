@@ -1,9 +1,11 @@
 import itertools
-import pprint
-from typing import List, Tuple, Set
+from typing import List, Set, Tuple
 
 import numpy as np
 from lsh import cache, minhash
+
+DEFAULT_NGRAM_SIZE = 5
+MIN_NGRAM_SIZE = 2
 
 
 def shingles(text, char_ngram=5):
@@ -39,17 +41,30 @@ def candidate_duplicates(document_feed, char_ngram=5, seeds=100, bands=5, hashby
 
     return candidate_pairs
 
-def apply_lsh(data: List[Tuple[str,str]], threshold: float) -> Tuple[str,Set[str]]:
+
+def apply_lsh(data: List[Tuple[str, str]], threshold: float) -> Tuple[str, Set[str]]:
     candidates = candidate_duplicates(
         data, char_ngram=5, seeds=100, bands=20, hashbytes=4
     )
 
     n = len(data)
+    char_ngram = DEFAULT_NGRAM_SIZE
     sims_all = np.zeros((n, n), dtype=np.float64)
     for i, _ in enumerate(data):
         for j in range(i + 1, len(data)):
-            shingles_a = shingles(data[i][1])
-            shingles_b = shingles(data[j][1])
+            data_point_a = data[i][1]
+            data_point_b = data[j][1]
+
+            if (
+                len(data_point_b) < DEFAULT_NGRAM_SIZE
+                or len(data_point_a) < DEFAULT_NGRAM_SIZE
+            ):
+                char_ngram = MIN_NGRAM_SIZE
+            else:
+                char_ngram = DEFAULT_NGRAM_SIZE
+
+            shingles_a = shingles(data_point_a, char_ngram=char_ngram)
+            shingles_b = shingles(data_point_b, char_ngram=char_ngram)
             jaccard_sim = jaccard(shingles_a, shingles_b)
             sims_all[i, j] = jaccard_sim
 
@@ -65,7 +80,8 @@ def apply_lsh(data: List[Tuple[str,str]], threshold: float) -> Tuple[str,Set[str
             if sims_all[i, j] >= round(float(threshold), 2):
                 found += (i, j) in candidates_dict or (j, i) in candidates_dict
     pairs_ot = (sims_all >= float(threshold)).sum()
-    pairs_ot = 1 if found == 0 else pairs_ot
-    results = f"{pairs_ot} pairs with similarity >= {float(threshold) * 100}% were found."
+    pairs_ot = found if found == 0 else pairs_ot
+    results = (
+        f"{pairs_ot} pairs with similarity >= {float(threshold) * 100}% were found."
+    )
     return (results, pairs_names)
-
