@@ -47,13 +47,40 @@ M1_MAX_ROW = 12
 M1_MAX_COL = 9
 M1_OFF_SET = 3
 
+A1_LAYER_X0 = set(["2", "3", "4", "5A", "5B", "6"])
+A1_LAYER_A0 = set(["1", "2", "3", "4", "5A", "5B", "6"])
+A1_IN_LAYERS = {
+    "SOM": A1_LAYER_X0,
+    "PV": A1_LAYER_X0,
+    "VIP": A1_LAYER_X0,
+    "NGF": A1_LAYER_A0,
+}
+A1_EX_LAYER_CT = set(["5A", "5B", "6"])
+A1_EX_LAYER_PT = set(["5B"])
+A1_EX_LAYER_IT = set(["2", "3", "5A", "5B", "6", "P4", "S4"])
+A1_EX_LAYERS = {"CT": A1_EX_LAYER_CT, "PT": A1_EX_LAYER_PT, "IT": A1_EX_LAYER_IT}
+
 
 class CellType(Enum):
     INHIBITORY = 1
     EXCITATORY = 2
 
 
-def generate_label(cell_type: CellType) -> list[str]:
+def generate_cell_field_name() -> list[str]:
+    field_names = []
+
+    for in_cell, in_layers in A1_IN_LAYERS.items():
+        for in_layer in in_layers:
+            for ex_cell, ex_layers in A1_EX_LAYERS.items():
+                for ex_layer in ex_layers:
+                    field_name = f"IE_{in_cell}{in_layer}_{ex_cell}{ex_layer}_"
+                    field_name = field_name + in_layer[0]
+                    field_names.append(field_name)
+
+    return field_names
+
+
+def generate_label_m1(cell_type: CellType) -> list[str]:
     labels = []
     cells = None
     if cell_type == CellType.INHIBITORY:
@@ -68,8 +95,8 @@ def generate_label(cell_type: CellType) -> list[str]:
     return labels
 
 
-def load_connParams(file_path: str) -> NDArray[np.float64]:
-    data = np.zeros((M1_MAX_ROW, M1_MAX_COL))
+def load_connParams(file_path, max_row, max_col: str) -> NDArray[np.float64]:
+    data = np.zeros((max_row, max_col))
     conn_params = pd.read_json(file_path)
 
     conn = {}
@@ -92,20 +119,24 @@ def load_connParams(file_path: str) -> NDArray[np.float64]:
 
 
 def main():
-    inhibtory_cell_labels = generate_label(CellType.INHIBITORY)
-    excitatory_cell_labels = generate_label(CellType.EXCITATORY)
-    data = load_connParams("./m1/v101_connParams.json")
-    graph = sns.heatmap(
-        data,
-        cmap="YlGnBu",
-        xticklabels=excitatory_cell_labels,
-        yticklabels=inhibtory_cell_labels,
-    )
-    graph.set_title("M1 v101 Conn Params")
-    graph.xaxis.tick_top()
-    graph.xaxis.set_label_position("top")
+    fields_names = generate_cell_field_name()
 
-    plt.show()
+    for name in fields_names:
+        print(name)
+    # inhibtory_cell_labels = generate_label_m1(CellType.INHIBITORY)
+    # excitatory_cell_labels = generate_label_m1(CellType.EXCITATORY)
+    # data = load_connParams("./m1/v101_connParams.json", M1_MAX_ROW, M1_MAX_COL)
+    # graph = sns.heatmap(
+    #     data,
+    #     cmap="YlGnBu",
+    #     xticklabels=excitatory_cell_labels,
+    #     yticklabels=inhibtory_cell_labels,
+    # )
+    # graph.set_title("M1 v101 Conn Params")
+    # graph.xaxis.tick_top()
+    # graph.xaxis.set_label_position("top")
+    #
+    # plt.show()
 
 
 if __name__ == "__main__":
