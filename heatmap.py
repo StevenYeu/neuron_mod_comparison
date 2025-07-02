@@ -105,6 +105,12 @@ class CellType(Enum):
     EXCITATORY = 2
 
 
+class HeatMapType(Enum):
+    WEIGHT = 1
+    PROB = 2
+    ALL = 3
+
+
 def generate_label_m1(cell_type: CellType) -> list[str]:
     labels = []
     cells = None
@@ -146,18 +152,34 @@ def load_M1_connParams(file_path, max_row, max_col: str) -> NDArray[np.float64]:
 
 def load_A1_connParams(
     file_path: str, max_row: int, max_col: int
-) -> NDArray[np.float64]:
-    data = np.zeros((max_row, max_col))
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    weight_data = np.zeros((max_row, max_col))
+    prob_data = np.zeros((max_row, max_col))
     conn_params = pd.read_json(file_path)
 
     for conn_type in A1_FIELD_NAMES:
+        print(conn_type)
         for key, value in conn_params.items():
             if conn_type == key:
-                weight = value.to_dict()["weight"]
+                data_dict = value.to_dict()
+                weight = data_dict["weight"]
+                prob: str = data_dict["probability"]
                 (row, col) = A1_LOOKUP_TABLE[key]
-                data[row][col] = weight
+                weight_data[row][col] = weight
+                re_prob = re.sub(r" \* exp\(-dist_2D/\d+\.\d+\)", "", prob)
+                print(prob)
+                prob_data[row][col] = float(re_prob)
 
-    return data
+    return weight_data, prob_data
+
+def plot_graph(title: str, data:NDArray[np.float64], x_labels: list[str], y_label: list[str]) -> plt.Axes: 
+    graph = sns.heatmap(
+        data, cmap="YlGnBu", xticklabels=x_labels, yticklabels=y_label
+    )
+    graph.set_title(title)
+    graph.xaxis.tick_top()
+    graph.xaxis.set_label_position("top")
+    return graph
 
 
 def main():
@@ -176,22 +198,14 @@ def main():
     #
     # plt.show()
 
-    print(A1_IN_LABELS)
-    print(len(A1_IN_LABELS))
-
-    data = load_A1_connParams(
-        "./a1/a1-netparams_conn_params.json", A1_MAX_ROW, A1_MAX_COL
+    weight_data, prob_data = load_A1_connParams(
+        "./a1/a1-netparams-conn-params-v15.json", A1_MAX_ROW, A1_MAX_COL
     )
-    graph = sns.heatmap(
-        data, cmap="YlGnBu"
-        , xticklabels=A1_EX_LABELS, 
-        yticklabels=A1_IN_LABELS
-    )
-    graph.set_title("A1 Conn Params")
-    graph.xaxis.tick_top()
-    graph.xaxis.set_label_position("top")
+    # plot_graph("A1 Conn Params - Weight v29", weight_data, A1_EX_LABELS, A1_IN_LABELS)
+    # plot_graph("A1 Conn Params - Probability v15", prob_data, A1_EX_LABELS, A1_IN_LABELS)
+    
 
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":
