@@ -1,3 +1,4 @@
+from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 import re
@@ -7,9 +8,9 @@ import matplotlib.pylab as plt
 from enum import Enum
 
 
-def generate_a1_data() -> tuple[
-    list[str], dict[str, {tuple[int, int]}], list[str], list[str]
-]:
+def generate_a1_data(
+    underscore: bool = True,
+) -> tuple[list[str], dict[str, {tuple[int, int]}], list[str], list[str]]:
     field_names = []
     lookup_table = {}
     ex_labels = set([])
@@ -23,8 +24,9 @@ def generate_a1_data() -> tuple[
             for ex_cell, ex_layers in A1_EX_LAYERS.items():
                 for ex_layer in ex_layers:
                     ex_labels.add(f"{ex_cell}{ex_layer}")
-                    field_name = f"IE_{in_cell}{in_layer}_{ex_cell}{ex_layer}_"
-                    field_name = field_name + in_layer[0]
+                    field_name = f"IE_{in_cell}{in_layer}_{ex_cell}{ex_layer}"
+                    if underscore:
+                        field_name = field_name + f"_{in_layer[0]}"
                     field_names.append(field_name)
                     lookup_table[field_name] = (row, col)
                     col += 1
@@ -97,8 +99,6 @@ A1_MAX_ROW = (
 A1_MAX_COL = len(A1_EX_LAYER_CT) + len(A1_EX_LAYER_PT) + len(A1_EX_LAYER_IT)
 A1_OFF_SET = 0
 
-A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
-
 
 class CellType(Enum):
     INHIBITORY = 1
@@ -151,31 +151,34 @@ def load_M1_connParams(file_path, max_row, max_col: str) -> NDArray[np.float64]:
 
 
 def load_A1_connParams(
-    file_path: str, max_row: int, max_col: int
+    file_path: str,
+    max_row: int,
+    max_col: int,
+    field_names: list[str],
+    lookup_table: dict[str, Any],
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     weight_data = np.zeros((max_row, max_col))
     prob_data = np.zeros((max_row, max_col))
     conn_params = pd.read_json(file_path)
 
-    for conn_type in A1_FIELD_NAMES:
-        print(conn_type)
+    for conn_type in field_names:
         for key, value in conn_params.items():
             if conn_type == key:
                 data_dict = value.to_dict()
                 weight = data_dict["weight"]
                 prob: str = data_dict["probability"]
-                (row, col) = A1_LOOKUP_TABLE[key]
+                (row, col) = lookup_table[key]
                 weight_data[row][col] = weight
                 re_prob = re.sub(r" \* exp\(-dist_2D/\d+\.\d+\)", "", prob)
-                print(prob)
                 prob_data[row][col] = float(re_prob)
 
     return weight_data, prob_data
 
-def plot_graph(title: str, data:NDArray[np.float64], x_labels: list[str], y_label: list[str]) -> plt.Axes: 
-    graph = sns.heatmap(
-        data, cmap="YlGnBu", xticklabels=x_labels, yticklabels=y_label
-    )
+
+def plot_graph(
+    title: str, data: NDArray[np.float64], x_labels: list[str], y_label: list[str]
+) -> plt.Axes:
+    graph = sns.heatmap(data, cmap="YlGnBu", xticklabels=x_labels, yticklabels=y_label)
     graph.set_title(title)
     graph.xaxis.tick_top()
     graph.xaxis.set_label_position("top")
@@ -183,6 +186,13 @@ def plot_graph(title: str, data:NDArray[np.float64], x_labels: list[str], y_labe
 
 
 def main():
+    A1_FIELD_NAMES_v15, A1_LOOKUP_TABLE_v15, A1_IN_LABELS, A1_EX_LABELS = (
+        generate_a1_data(False)
+    )
+
+    A1_FIELD_NAMES_v29, A1_LOOKUP_TABLE_v29, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
+    ## M1 Model
+
     # inhibtory_cell_labels = generate_label_m1(CellType.INHIBITORY)
     # excitatory_cell_labels = generate_label_m1(CellType.EXCITATORY)
     # data = load_connParams("./m1/v101_connParams.json", M1_MAX_ROW, M1_MAX_COL)
@@ -198,14 +208,34 @@ def main():
     #
     # plt.show()
 
-    weight_data, prob_data = load_A1_connParams(
-        "./a1/a1-netparams-conn-params-v15.json", A1_MAX_ROW, A1_MAX_COL
-    )
-    # plot_graph("A1 Conn Params - Weight v29", weight_data, A1_EX_LABELS, A1_IN_LABELS)
-    # plot_graph("A1 Conn Params - Probability v15", prob_data, A1_EX_LABELS, A1_IN_LABELS)
-    
+    ## A1 Model
 
-    # plt.show()
+    a1_v15_weight_data, a1_v15_prob_data = load_A1_connParams(
+        "./a1/a1-netparams-conn-params-v15.json",
+        A1_MAX_ROW,
+        A1_MAX_COL,
+        A1_FIELD_NAMES_v15,
+        A1_LOOKUP_TABLE_v15,
+    )
+    a1_v29_weight_data, a1_v29_prob_data = load_A1_connParams(
+        "./a1/a1-netparams-conn-params-v29.json",
+        A1_MAX_ROW,
+        A1_MAX_COL,
+        A1_FIELD_NAMES_v29,
+        A1_LOOKUP_TABLE_v29,
+    )
+    # plot_graph("A1 Conn Params - Weight v15", weight_data, A1_EX_LABELS, A1_IN_LABELS)
+    # plot_graph("A1 Conn Params - Probability v15", prob_data, A1_EX_LABELS, A1_IN_LABELS)
+
+    # diff_weight = np.absolute(a1_v29_weight_data, a1_v15_weight_data)
+    # plot_graph(
+    #     "A1 Conn Params - Weight Difference", diff_weight, A1_EX_LABELS, A1_IN_LABELS
+    # )
+    diff_prop = np.absolute(a1_v29_prob_data, a1_v15_prob_data)
+    plot_graph(
+        "A1 Conn Params - Probability Difference", diff_prop, A1_EX_LABELS, A1_IN_LABELS
+    )
+    plt.show()
 
 
 if __name__ == "__main__":
