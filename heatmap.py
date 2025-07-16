@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pylab as plt
 from enum import Enum
+import argparse
 
 
 def generate_a1_data(
@@ -126,8 +127,11 @@ def generate_label_m1(cell_type: CellType) -> list[str]:
     return labels
 
 
-def load_M1_connParams(file_path, max_row, max_col: str) -> NDArray[np.float64]:
-    data = np.zeros((max_row, max_col))
+def load_M1_connParams(
+    file_path, max_row, max_col: str
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    weight_data = np.zeros((max_row, max_col))
+    prob_data = np.zeros((max_row, max_col))
     conn_params = pd.read_json(file_path)
 
     conn = {}
@@ -145,9 +149,12 @@ def load_M1_connParams(file_path, max_row, max_col: str) -> NDArray[np.float64]:
         in_layers = re.findall("\d+", in_cell)
         in_index = (M1_OFF_SET * M1_INHIBITORY_CELL_NAMES[in_cell]) + int(ex_layers[0])
         ex_index = (M1_OFF_SET * M1_EXCITATORY_CELL_NAMES[ex_cell]) + int(in_layers[1])
-        data[in_index][ex_index] = value["weight"]
+        weight_data[in_index][ex_index] = value["weight"]
+        prob: str = value["probability"]
+        re_prob = re.sub(r" \* exp\(-dist_3D/probLambda)", "", prob)
+        prob_data[in_index][ex_index] = float(re_prob)
 
-    return data
+    return weight_data, prob_data
 
 
 def load_A1_connParams(
@@ -175,66 +182,144 @@ def load_A1_connParams(
     return weight_data, prob_data
 
 
-def plot_graph(
-    title: str, data: NDArray[np.float64], x_labels: list[str], y_label: list[str]
+def save_graph(
+    title: str,
+    data: NDArray[np.float64],
+    x_labels: list[str],
+    y_label: list[str],
+    filename: str,
 ) -> plt.Axes:
     graph = sns.heatmap(data, cmap="YlGnBu", xticklabels=x_labels, yticklabels=y_label)
     graph.set_title(title)
     graph.xaxis.tick_top()
     graph.xaxis.set_label_position("top")
-    return graph
+    plt.savefig(filename)
+
+
+def heatmap(filename: str, model: str, variant: str):
+    weight_graph_name = (f"{model} {variant} Conn Params - Weight",)
+    prob_graph_name = (f"{model} {variant} Conn Params - Probability",)
+    if model == "M1":
+        inhibtory_cell_labels = generate_label_m1(CellType.INHIBITORY)
+        excitatory_cell_labels = generate_label_m1(CellType.EXCITATORY)
+        weight_data, prob_data = load_M1_connParams(filename, M1_MAX_ROW, M1_MAX_COL)
+        filename_split = filename.split(".")
+        weight_filename = f"{filename_split[0]}_weight.{filename_split[1]}"
+        prob_filename = f"{filename_split[0]}_prob.{filename_split[1]}"
+        save_graph(
+            weight_graph_name,
+            weight_data,
+            excitatory_cell_labels,
+            inhibtory_cell_labels,
+            weight_filename,
+        )
+
+        save_graph(
+            prob_graph_name,
+            prob_data,
+            excitatory_cell_labels,
+            inhibtory_cell_labels,
+            prob_filename,
+        )
+        return
+    if model == "A1":
+        A1_FIELD_NAMES_v15, A1_LOOKUP_TABLE_v15, A1_IN_LABELS, A1_EX_LABELS = (
+            generate_a1_data(False)
+        )
+
+        A1_FIELD_NAMES_v29, A1_LOOKUP_TABLE_v29, A1_IN_LABELS, A1_EX_LABELS = (
+            generate_a1_data()
+        )
+
+        a1_v15_weight_data, a1_v15_prob_data = load_A1_connParams(
+            "./a1/a1-netparams-conn-params-v15.json",
+            A1_MAX_ROW,
+            A1_MAX_COL,
+            A1_FIELD_NAMES_v15,
+            A1_LOOKUP_TABLE_v15,
+        )
+        a1_v29_weight_data, a1_v29_prob_data = load_A1_connParams(
+            "./a1/a1-netparams-conn-params-v29.json",
+            A1_MAX_ROW,
+            A1_MAX_COL,
+            A1_FIELD_NAMES_v29,
+            A1_LOOKUP_TABLE_v29,
+        )
+        save_graph(weight_graph_name, weight_data, A1_EX_LABELS, A1_IN_LABELS)
+        save_graph(
+            "A1 Conn Params - Probability v15", prob_data, A1_EX_LABELS, A1_IN_LABELS
+        )
+
+
+def heatmap_diff(
+    dataset_a,
+    dataset_b,
+    x_label: list[str],
+    y_label: list[str],
+    model_name: str,
+    version_a: str,
+    version_b: str,
+    data_type: str,
+    graph_filename: str,
+):
+    diff_data = np.absolute(dataset_a, dataset_b)
+    graph_name = f"{model_name} Conn Params - {data_type} Differece for {version_a} and {version_b}"
+    save_graph(graph_name, diff_data, x_label, y_label, graph_filename)
 
 
 def main():
-    A1_FIELD_NAMES_v15, A1_LOOKUP_TABLE_v15, A1_IN_LABELS, A1_EX_LABELS = (
-        generate_a1_data(False)
+    parser = argparse.ArgumentParser(
+        prog="HeatMap Generator",
+        description="Generate Heat for NetPyne Data",
     )
+    parser.add_argument("filename")
+    parser.add_argument("model")
+    parser.add_argument("variant")
+    model = parser.filename
+    filename = parser.model
+    variant = parser.variant
+    weight_graph_name = (f"{model} {variant} Conn Params - Weight",)
+    prob_graph_name = (f"{model} {variant} Conn Params - Probability",)
+    filename_split = filename.split(".")
+    weight_filename = f"{filename_split[0]}_weight.{filename_split[1]}"
+    prob_filename = f"{filename_split[0]}_prob.{filename_split[1]}"
+    if model == "M1":
+        inhibtory_cell_labels = generate_label_m1(CellType.INHIBITORY)
+        excitatory_cell_labels = generate_label_m1(CellType.EXCITATORY)
+        weight_data, prob_data = load_M1_connParams(filename, M1_MAX_ROW, M1_MAX_COL)
+        save_graph(
+            weight_graph_name,
+            weight_data,
+            excitatory_cell_labels,
+            inhibtory_cell_labels,
+            weight_filename,
+        )
 
-    A1_FIELD_NAMES_v29, A1_LOOKUP_TABLE_v29, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
-    ## M1 Model
+        save_graph(
+            prob_graph_name,
+            prob_data,
+            excitatory_cell_labels,
+            inhibtory_cell_labels,
+            prob_filename,
+        )
+        return
+    if model == "A1":
+        if variant == "v15":
+            A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = (
+                generate_a1_data(False)
+            )
+        A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
 
-    # inhibtory_cell_labels = generate_label_m1(CellType.INHIBITORY)
-    # excitatory_cell_labels = generate_label_m1(CellType.EXCITATORY)
-    # data = load_connParams("./m1/v101_connParams.json", M1_MAX_ROW, M1_MAX_COL)
-    # graph = sns.heatmap(
-    #     data,
-    #     cmap="YlGnBu",
-    #     xticklabels=excitatory_cell_labels,
-    #     yticklabels=inhibtory_cell_labels,
-    # )
-    # graph.set_title("M1 v101 Conn Params")
-    # graph.xaxis.tick_top()
-    # graph.xaxis.set_label_position("top")
-    #
-    # plt.show()
+        weight_data, prob_data = load_A1_connParams(
+            filename,
+            A1_MAX_ROW,
+            A1_MAX_COL,
+            A1_FIELD_NAMES,
+            A1_LOOKUP_TABLE,
+        )
+        save_graph(weight_graph_name, weight_data, A1_EX_LABELS, A1_IN_LABELS)
+        save_graph(prob_graph_name, prob_data, A1_EX_LABELS, A1_IN_LABELS)
 
-    ## A1 Model
-
-    a1_v15_weight_data, a1_v15_prob_data = load_A1_connParams(
-        "./a1/a1-netparams-conn-params-v15.json",
-        A1_MAX_ROW,
-        A1_MAX_COL,
-        A1_FIELD_NAMES_v15,
-        A1_LOOKUP_TABLE_v15,
-    )
-    a1_v29_weight_data, a1_v29_prob_data = load_A1_connParams(
-        "./a1/a1-netparams-conn-params-v29.json",
-        A1_MAX_ROW,
-        A1_MAX_COL,
-        A1_FIELD_NAMES_v29,
-        A1_LOOKUP_TABLE_v29,
-    )
-    # plot_graph("A1 Conn Params - Weight v15", weight_data, A1_EX_LABELS, A1_IN_LABELS)
-    # plot_graph("A1 Conn Params - Probability v15", prob_data, A1_EX_LABELS, A1_IN_LABELS)
-
-    # diff_weight = np.absolute(a1_v29_weight_data, a1_v15_weight_data)
-    # plot_graph(
-    #     "A1 Conn Params - Weight Difference", diff_weight, A1_EX_LABELS, A1_IN_LABELS
-    # )
-    diff_prop = np.absolute(a1_v29_prob_data, a1_v15_prob_data)
-    plot_graph(
-        "A1 Conn Params - Probability Difference", diff_prop, A1_EX_LABELS, A1_IN_LABELS
-    )
     plt.show()
 
 
