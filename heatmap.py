@@ -275,9 +275,10 @@ def main():
     parser.add_argument("filename")
     parser.add_argument("model")
     parser.add_argument("variant")
-    model = parser.filename
-    filename = parser.model
-    variant = parser.variant
+    args =  parser.parse_args()
+    model = args.filename
+    filename = args.model
+    variant = args.variant
     weight_graph_name = (f"{model} {variant} Conn Params - Weight",)
     prob_graph_name = (f"{model} {variant} Conn Params - Probability",)
     filename_split = filename.split(".")
@@ -304,11 +305,11 @@ def main():
         )
         return
     if model == "A1":
+        A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
         if variant == "v15":
             A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = (
                 generate_a1_data(False)
             )
-        A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
 
         weight_data, prob_data = load_A1_connParams(
             filename,
