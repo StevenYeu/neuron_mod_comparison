@@ -35,7 +35,7 @@ def generate_a1_data(
     return field_names, lookup_table, in_labels, list(ex_labels)
 
 
-M1_CONN_TYPES = set(
+M1_CONN_TYPES_v103 = set(
     [
         "SOM_IT_HH_full",
         "SOM_PT_HH_full",
@@ -52,7 +52,7 @@ M1_CONN_TYPES = set(
     ]
 )
 
-CONN_TYPES_v101 = set(
+M1_CONN_TYPES_v101 = set(
     [
         "SOM_IT_",
         "SOM_PT_",
@@ -128,7 +128,7 @@ def generate_label_m1(cell_type: CellType) -> list[str]:
 
 
 def load_M1_connParams(
-    file_path, max_row, max_col: str
+    file_path, max_row, max_col: str, variant: str
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     weight_data = np.zeros((max_row, max_col))
     prob_data = np.zeros((max_row, max_col))
@@ -136,22 +136,32 @@ def load_M1_connParams(
 
     conn = {}
 
-    for conn_type in CONN_TYPES_v101:
-        for key, value in conn_params.items():
-            if conn_type in key:
-                conn[key] = value.to_dict()
+    if variant == "v101":
+        for conn_type in M1_CONN_TYPES_v101:
+            for key, value in conn_params.items():
+                if conn_type in key:
+                    conn[key] = value.to_dict()
+    elif variant == "v103":
+        for conn_type in M1_CONN_TYPES_v103:
+            for key, value in conn_params.items():
+                if conn_type in key:
+                    conn[key] = value.to_dict()
 
     for key, value in conn.items():
         cells = key.split("_")
-        in_cell = cells[1]
-        ex_cell = cells[2]
-        ex_layers = re.findall("\d+", ex_cell)
-        in_layers = re.findall("\d+", in_cell)
-        in_index = (M1_OFF_SET * M1_INHIBITORY_CELL_NAMES[in_cell]) + int(ex_layers[0])
-        ex_index = (M1_OFF_SET * M1_EXCITATORY_CELL_NAMES[ex_cell]) + int(in_layers[1])
+        in_cell = cells[0]
+        ex_cell = cells[1]
+        split_len = len(cells)
+        in_index = (M1_OFF_SET * M1_INHIBITORY_CELL_NAMES[in_cell]) + int(
+            cells[split_len - 2]
+        )
+        ex_index = (M1_OFF_SET * M1_EXCITATORY_CELL_NAMES[ex_cell]) + int(
+            cells[split_len - 1]
+        )
         weight_data[in_index][ex_index] = value["weight"]
         prob: str = value["probability"]
-        re_prob = re.sub(r" \* exp\(-dist_3D/probLambda)", "", prob)
+        re_prob = re.sub(r" \* exp\(-dist_3D/probLambda\)", "", prob)
+        re_prob = re.sub(r" \* exp\(-dist_3D_border/probLambda\)", "", prob)
         prob_data[in_index][ex_index] = float(re_prob)
 
     return weight_data, prob_data
@@ -275,19 +285,21 @@ def main():
     parser.add_argument("filename")
     parser.add_argument("model")
     parser.add_argument("variant")
-    args =  parser.parse_args()
-    model = args.filename
-    filename = args.model
+    args = parser.parse_args()
+    model = args.model
+    filename = args.filename
     variant = args.variant
     weight_graph_name = (f"{model} {variant} Conn Params - Weight",)
     prob_graph_name = (f"{model} {variant} Conn Params - Probability",)
     filename_split = filename.split(".")
-    weight_filename = f"{filename_split[0]}_weight.{filename_split[1]}"
-    prob_filename = f"{filename_split[0]}_prob.{filename_split[1]}"
+    weight_filename = f"{filename_split[0]}_weight.png"
+    prob_filename = f"{filename_split[0]}_prob.png"
     if model == "M1":
         inhibtory_cell_labels = generate_label_m1(CellType.INHIBITORY)
         excitatory_cell_labels = generate_label_m1(CellType.EXCITATORY)
-        weight_data, prob_data = load_M1_connParams(filename, M1_MAX_ROW, M1_MAX_COL)
+        weight_data, prob_data = load_M1_connParams(
+            filename, M1_MAX_ROW, M1_MAX_COL, variant
+        )
         save_graph(
             weight_graph_name,
             weight_data,
