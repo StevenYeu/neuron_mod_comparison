@@ -90,17 +90,19 @@ def generate_a1_data(
 ) -> tuple[list[str], dict[str, {tuple[int, int]}], list[str], list[str]]:
     field_names = []
     lookup_table = {}
-    ex_labels = set([])
+    ex_labels = []
     in_labels = []
 
     row, col = 0, 0
-    for in_cell, in_layers in A1_IN_LAYERS.items():
-        for in_layer in in_layers:
+    for in_cell, in_layers in sorted(A1_IN_LAYERS.items()):
+        for in_layer in sorted(in_layers):
             col = 0
             in_labels.append(f"{in_cell}{in_layer}")
-            for ex_cell, ex_layers in A1_EX_LAYERS.items():
-                for ex_layer in ex_layers:
-                    ex_labels.add(f"{ex_cell}{ex_layer}")
+            for ex_cell, ex_layers in sorted(A1_EX_LAYERS.items()):
+                for ex_layer in sorted(ex_layers):
+                    ex_label = f"{ex_cell}{ex_layer}"
+                    if ex_label not in ex_labels:
+                        ex_labels.append(ex_label)
                     field_name = f"IE_{in_cell}{in_layer}_{ex_cell}{ex_layer}"
                     if underscore:
                         field_name = field_name + f"_{in_layer[0]}"
@@ -108,7 +110,7 @@ def generate_a1_data(
                     lookup_table[field_name] = (row, col)
                     col += 1
             row += 1
-    return field_names, lookup_table, in_labels, list(ex_labels)
+    return field_names, lookup_table, in_labels, ex_labels
 
 
 def generate_label_m1(cell_type: CellType) -> list[str]:
@@ -198,23 +200,29 @@ def save_graph(
     y_label: list[str],
     filename: str,
 ) -> plt.Axes:
+    plt.figure(figsize=(10, 10))
     graph = sns.heatmap(data, cmap="YlGnBu", xticklabels=x_labels, yticklabels=y_label)
+    graph.set_xticklabels(graph.get_xticklabels(), rotation=40)
     graph.set_title(title)
     graph.xaxis.tick_top()
     graph.xaxis.set_label_position("top")
-    plt.savefig(filename)
+    plt.tight_layout()
+    plt.savefig(filename, dpi=400)
+    plt.clf()
 
 
 def heatmap(filename: str, model: str, variant: str):
-    weight_graph_name = (f"{model} {variant} Conn Params - Weight",)
-    prob_graph_name = (f"{model} {variant} Conn Params - Probability",)
+    weight_graph_name = f"{model} {variant} Conn Params - Weight"
+    prob_graph_name = f"{model} {variant} Conn Params - Probability"
+    filename_split = filename.split(".")
+    weight_filename = f"{filename_split[0]}_weight.png"
+    prob_filename = f"{filename_split[0]}_prob.png"
     if model == "M1":
-        inhibtory_cell_labels = generate_label_m1(CellType.INHIBITORY)
-        excitatory_cell_labels = generate_label_m1(CellType.EXCITATORY)
-        weight_data, prob_data = load_M1_connParams(filename, M1_MAX_ROW, M1_MAX_COL)
-        filename_split = filename.split(".")
-        weight_filename = f"{filename_split[0]}_weight.{filename_split[1]}"
-        prob_filename = f"{filename_split[0]}_prob.{filename_split[1]}"
+        inhibtory_cell_labels = sorted(generate_label_m1(CellType.INHIBITORY))
+        excitatory_cell_labels = sorted(generate_label_m1(CellType.EXCITATORY))
+        weight_data, prob_data = load_M1_connParams(
+            filename, M1_MAX_ROW, M1_MAX_COL, variant
+        )
         save_graph(
             weight_graph_name,
             weight_data,
@@ -232,31 +240,32 @@ def heatmap(filename: str, model: str, variant: str):
         )
         return
     if model == "A1":
-        A1_FIELD_NAMES_v15, A1_LOOKUP_TABLE_v15, A1_IN_LABELS, A1_EX_LABELS = (
-            generate_a1_data(False)
-        )
+        A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
+        a1_filename = "./a1/a1-netparams-conn-params-v29.json"
+        if variant == "v15":
+            A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = (
+                generate_a1_data(False)
+            )
+            a1_filename = "./a1/a1-netparams-conn-params-v15.json"
 
-        A1_FIELD_NAMES_v29, A1_LOOKUP_TABLE_v29, A1_IN_LABELS, A1_EX_LABELS = (
-            generate_a1_data()
-        )
-
-        a1_v15_weight_data, a1_v15_prob_data = load_A1_connParams(
-            "./a1/a1-netparams-conn-params-v15.json",
+        weight_data, prob_data = load_A1_connParams(
+            a1_filename,
             A1_MAX_ROW,
             A1_MAX_COL,
-            A1_FIELD_NAMES_v15,
-            A1_LOOKUP_TABLE_v15,
+            sorted(A1_FIELD_NAMES),
+            A1_LOOKUP_TABLE,
         )
-        a1_v29_weight_data, a1_v29_prob_data = load_A1_connParams(
-            "./a1/a1-netparams-conn-params-v29.json",
-            A1_MAX_ROW,
-            A1_MAX_COL,
-            A1_FIELD_NAMES_v29,
-            A1_LOOKUP_TABLE_v29,
-        )
-        save_graph(weight_graph_name, weight_data, A1_EX_LABELS, A1_IN_LABELS)
+        sorted_label_ex = sorted(A1_EX_LABELS)
+        sorted_label_in = sorted(A1_IN_LABELS)
         save_graph(
-            "A1 Conn Params - Probability v15", prob_data, A1_EX_LABELS, A1_IN_LABELS
+            weight_graph_name,
+            weight_data,
+            sorted_label_ex,
+            sorted_label_in,
+            weight_filename,
+        )
+        save_graph(
+            prob_graph_name, prob_data, sorted_label_ex, sorted_label_in, prob_filename
         )
 
 
@@ -271,6 +280,9 @@ def heatmap_diff(
     data_type: str,
     graph_filename: str,
 ):
-    diff_data = np.absolute(dataset_a, dataset_b)
+    diff_data = np.abs(dataset_a-dataset_b)
+    print(dataset_a)
+    print(dataset_b)
+    print(diff_data)
     graph_name = f"{model_name} Conn Params - {data_type} Differece for {version_a} and {version_b}"
     save_graph(graph_name, diff_data, x_label, y_label, graph_filename)

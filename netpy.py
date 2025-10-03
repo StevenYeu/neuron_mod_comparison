@@ -9,12 +9,12 @@ from deepdiff import DeepDiff
 from lib import apply_lsh
 
 CELL_PARAMS = [
-    "popParams",
-    "cellParams",
-    "synMechParams",
+    # "popParams",
+    # "cellParams",
+    # "synMechParams",
     "connParams",
-    "stimSourceParams",
-    "stimTargetParams",
+    # "stimSourceParams",
+    # "stimTargetParams",
 ]
 
 
@@ -51,7 +51,8 @@ def run():
 
     parser.add_argument("input")
     parser.add_argument("threshold")
-    parser.add_argument("--diff", default=True, action="store_true")
+    parser.add_argument("--diff", default=False, action="store_true")
+    parser.add_argument("--data", default=False, action="store_true")
 
     args = parser.parse_args()
 
@@ -71,7 +72,7 @@ def run():
 
     for params, res in result.items():
         print(f"Results for {params}")
-        print(res[0])
+        # print(res[0])
         for (
             file1,
             file2,
@@ -81,16 +82,17 @@ def run():
             if abs(float(score) - 1.0) > 0.0001:
                 f1 = json.loads(file_params[file1][params])
                 f2 = json.loads(file_params[file2][params])
-                print(f"Data for {file1}")
-                pprint(f1, indent=4, width=80, depth=4)
-                print()
-                print(f"Data for {file2}")
-                pprint(f2, indent=4, width=80, depth=4)
-                print()
-                print(f"Differences for {params}")
-                param_diff = DeepDiff(f1, f2, ignore_order=True)
-                pprint(param_diff, indent=4, width=80, depth=4)
-
+                if args.data is True:
+                    print(f"Data for {file1}")
+                    pprint(f1, indent=4, width=80, depth=4)
+                    print()
+                    print(f"Data for {file2}")
+                    pprint(f2, indent=4, width=80, depth=4)
+                    print()
+                if args.diff is True:
+                    print(f"Differences for {params}")
+                    param_diff = DeepDiff(f1, f2, ignore_order=True)
+                    pprint(param_diff, indent=4, width=80, depth=4)
 
 
 if __name__ == "__main__":

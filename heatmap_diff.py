@@ -30,12 +30,6 @@ def main():
     filename_two = args.filename_two
     variant_one = args.variant_one
     variant_two = args.variant_two
-    weight_graph_name = (
-        f"{model} {variant_one} and {variant_two} Difference Conn Params - Weight",
-    )
-    prob_graph_name = (
-        f"{model} {variant_one} and {variant_two} Difference Conn Params - Probability",
-    )
     weight_filename = f"{model}_diff_{variant_one}_{variant_two}_weight.png"
     prob_filename = f"{model}_diff_{variant_one}_{variant_two}_prob.png"
     if model == "M1":
@@ -50,44 +44,78 @@ def main():
         heatmap_diff(
             weight_data_one,
             weight_data_two,
-            inhibtory_cell_labels,
             excitatory_cell_labels,
+            inhibtory_cell_labels,
             model,
             variant_one,
             variant_two,
             "weight",
-            weight_filename
+            weight_filename,
         )
         heatmap_diff(
             prob_data_one,
             prob_data_two,
-            inhibtory_cell_labels,
             excitatory_cell_labels,
+            inhibtory_cell_labels,
             model,
             variant_one,
             variant_two,
             "prob",
-            prob_filename
+            prob_filename,
         )
         return
     if model == "A1":
-        A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = generate_a1_data()
-        if variant_one == "v15":
-            A1_FIELD_NAMES, A1_LOOKUP_TABLE, A1_IN_LABELS, A1_EX_LABELS = (
-                generate_a1_data(False)
-            )
+        # Var One - v29
+        # Var Two - v15
+        (
+            A1_FIELD_NAMES_VAR_ONE,
+            A1_LOOKUP_TABLE_VAR_ONE,
+            A1_IN_LABELS,
+            A1_EX_LABELS,
+        ) = generate_a1_data()
+        (
+            A1_FIELD_NAMES_VAR_TWO,
+            A1_LOOKUP_TABLE_VAR_TWO,
+            _,
+            _,
+        ) = generate_a1_data(False)
 
-        weight_data, prob_data = load_A1_connParams(
+        weight_data_one, prob_data_one = load_A1_connParams(
             filename_one,
             A1_MAX_ROW,
             A1_MAX_COL,
-            A1_FIELD_NAMES,
-            A1_LOOKUP_TABLE,
+            sorted(A1_FIELD_NAMES_VAR_ONE),
+            A1_LOOKUP_TABLE_VAR_ONE,
         )
-        save_graph(weight_graph_name, weight_data, A1_EX_LABELS, A1_IN_LABELS)
-        save_graph(prob_graph_name, prob_data, A1_EX_LABELS, A1_IN_LABELS)
-
-    plt.show()
+        weight_data_two, prob_data_two = load_A1_connParams(
+            filename_two,
+            A1_MAX_ROW,
+            A1_MAX_COL,
+            sorted(A1_FIELD_NAMES_VAR_TWO),
+            A1_LOOKUP_TABLE_VAR_TWO,
+        )
+        heatmap_diff(
+            weight_data_one,
+            weight_data_two,
+            A1_EX_LABELS,
+            A1_IN_LABELS,
+            model,
+            variant_one,
+            variant_two,
+            "weight",
+            weight_filename,
+        )
+        heatmap_diff(
+            prob_data_one,
+            prob_data_two,
+            A1_EX_LABELS,
+            A1_IN_LABELS,
+            model,
+            variant_one,
+            variant_two,
+            "prob",
+            prob_filename,
+        )
 
 
 if __name__ == "__main__":
